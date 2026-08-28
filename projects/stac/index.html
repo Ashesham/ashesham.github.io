@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>STAC: Selective Spatiotemporal Aggregation and Compression for Video Reasoning Segmentation</title>
+    <meta name="description" content="STAC enriches video features via decoupled bidirectional spatial and causal temporal state-space scanning, then compresses them hierarchically with task-grounded adaptive thresholds: ~85% fewer tokens and a 1.8&times; speedup for video reasoning segmentation. ECCV 2026.">
+    <meta property="og:title" content="STAC: Selective Spatiotemporal Aggregation and Compression for Video Reasoning Segmentation">
+    <meta property="og:description" content="~85% token reduction and 1.8&times; speedup for video reasoning segmentation, in a zero-shot streaming-compatible setting. ECCV 2026.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://ashesham.github.io/projects/stac/">
+    <meta property="og:image" content="https://ashesham.github.io/projects/stac/static/images/fig_architecture.png">
+    <meta name="twitter:card" content="summary_large_image">
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%232f4f8f'/%3E%3Ctext x='50' y='72' font-size='62' font-family='Georgia,serif' fill='%23f7f9fe' text-anchor='middle'%3ES%3C/text%3E%3C/svg%3E">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:ital,wght@0,400;0,600;0,700;1,400&family=Source+Serif+4:opsz,wght@8..60,600;8..60,700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --accent: #2f4f8f;
+            --accent-light: #5b82c9;
+            --accent-subtle: #e4ecfb;
+            --text: #1b2233;
+            --text-secondary: #4f5870;
+            --text-tertiary: #8590a8;
+            --border: #e3e7ef;
+            --bg-subtle: #f6f8fc;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Noto Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            color: var(--text);
+            background: #ffffff;
+            line-height: 1.65;
+            font-size: 17px;
+        }
+        .container { max-width: 900px; margin: 0 auto; padding: 0 24px; }
+        .wide { max-width: 1080px; }
+
+        /* Top strip linking back to the profile */
+        .topbar {
+            border-bottom: 1px solid var(--border);
+            font-size: 14px;
+        }
+        .topbar .container {
+            display: flex; justify-content: space-between; align-items: center;
+            padding-top: 10px; padding-bottom: 10px;
+        }
+        .topbar a { color: var(--text-secondary); text-decoration: none; }
+        .topbar a:hover { color: var(--accent); }
+
+        /* Hero */
+        .hero { text-align: center; padding: 56px 0 40px; }
+        .venue-badge {
+            display: inline-block;
+            background: var(--accent-subtle); color: var(--accent);
+            font-weight: 700; font-size: 14px; letter-spacing: 0.06em;
+            padding: 5px 16px; border-radius: 999px; margin-bottom: 22px;
+        }
+        h1 {
+            font-family: 'Source Serif 4', Georgia, 'Times New Roman', serif;
+            font-size: clamp(26px, 4.2vw, 40px);
+            font-weight: 700; line-height: 1.25;
+            max-width: 860px; margin: 0 auto 26px;
+        }
+        h1 .stac-name { color: var(--accent); }
+        .authors { font-size: 17.5px; margin-bottom: 8px; }
+        .authors span.author { white-space: nowrap; }
+        .authors sup { font-size: 11px; color: var(--text-secondary); }
+        .authors a { color: var(--accent); text-decoration: none; }
+        .authors a:hover { text-decoration: underline; }
+        .affiliations {
+            font-size: 13.5px; color: var(--text-secondary);
+            max-width: 760px; margin: 0 auto 8px; line-height: 1.7;
+        }
+        .affiliations sup { font-size: 10px; }
+        .corresponding { font-size: 12.5px; color: var(--text-tertiary); margin-bottom: 28px; }
+        .btn-row { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+        .btn {
+            display: inline-flex; align-items: center; gap: 8px;
+            background: #1f2637; color: #ffffff;
+            padding: 9px 20px; border-radius: 999px;
+            font-size: 15px; font-weight: 600; text-decoration: none;
+            transition: background 0.15s ease, transform 0.15s ease;
+        }
+        .btn:hover { background: var(--accent); transform: translateY(-1px); }
+        .btn svg { width: 16px; height: 16px; fill: currentColor; }
+
+        /* Sections */
+        section { padding: 34px 0; }
+        section + section { border-top: 1px solid var(--border); }
+        h2 {
+            font-family: 'Source Serif 4', Georgia, serif;
+            font-size: 27px; font-weight: 700; text-align: center; margin-bottom: 22px;
+        }
+        .figure { text-align: center; }
+        .figure img { max-width: 100%; height: auto; }
+        .caption {
+            font-size: 14px; color: var(--text-secondary);
+            max-width: 780px; margin: 14px auto 0; text-align: justify;
+            -webkit-hyphens: auto; hyphens: auto;
+        }
+        .caption .figlabel { font-weight: 700; color: var(--text); }
+        .prose {
+            max-width: 780px; margin: 0 auto; text-align: justify;
+            -webkit-hyphens: auto; hyphens: auto;
+        }
+        .prose b { color: var(--accent); }
+
+        /* Stat strip */
+        .stats { display: flex; flex-wrap: wrap; justify-content: center; gap: 14px; margin-bottom: 30px; }
+        .stat {
+            background: var(--bg-subtle); border: 1px solid var(--border);
+            border-radius: 12px; padding: 16px 26px; text-align: center; min-width: 170px;
+        }
+        .stat .num {
+            font-family: 'Source Serif 4', Georgia, serif;
+            font-size: 30px; font-weight: 700; color: var(--accent); line-height: 1.2;
+        }
+        .stat .lbl { font-size: 13.5px; color: var(--text-secondary); }
+
+        /* Contribution cards */
+        .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+        .card {
+            border: 1px solid var(--border); border-radius: 12px;
+            padding: 20px 20px 18px; background: #ffffff;
+        }
+        .card h3 { font-size: 16.5px; margin-bottom: 8px; color: var(--accent); }
+        .card p {
+            font-size: 14.5px; color: var(--text-secondary); text-align: justify;
+            -webkit-hyphens: auto; hyphens: auto;
+        }
+
+        /* Results figures side by side */
+        .fig-pair { display: flex; gap: 22px; align-items: center; justify-content: center; flex-wrap: wrap; }
+        .fig-pair .figure { flex: 1 1 300px; max-width: 460px; }
+
+        /* Stacked tinted chapter blocks; only chapter 1 needs to scroll */
+        .vid-group {
+            border-radius: 16px; padding: 16px 18px 14px;
+            margin-bottom: 22px;
+        }
+        .vid-group:last-of-type { margin-bottom: 0; }
+        .carousel { position: relative; }
+        .vid-scroll {
+            display: flex; gap: 18px;
+            overflow-x: auto; padding: 6px 2px 10px;
+            scroll-snap-type: x proximity;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+        }
+        .vid-scroll::-webkit-scrollbar { display: none; }
+        .carousel.overflowing .vid-scroll {
+            -webkit-mask-image: linear-gradient(to right, transparent, #000 36px, #000 calc(100% - 36px), transparent);
+            mask-image: linear-gradient(to right, transparent, #000 36px, #000 calc(100% - 36px), transparent);
+        }
+        .carousel.at-start .vid-scroll {
+            -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 36px), transparent);
+            mask-image: linear-gradient(to right, #000 calc(100% - 36px), transparent);
+        }
+        .carousel.at-end .vid-scroll {
+            -webkit-mask-image: linear-gradient(to right, transparent, #000 36px);
+            mask-image: linear-gradient(to right, transparent, #000 36px);
+        }
+        .vid-group.g1 { background: #eef4fd; }
+        .vid-group.g2 { background: #f3f0fb; }
+        .vid-group.g3 { background: #eef7f3; }
+        .group-title {
+            font-family: 'Source Serif 4', Georgia, serif;
+            font-size: 18px; font-weight: 700; text-align: center;
+            margin-bottom: 14px;
+        }
+        .vid-group.g1 .group-title { color: #2f4f8f; }
+        .vid-group.g2 .group-title { color: #5b4a9e; }
+        .vid-group.g3 .group-title { color: #2d6b52; }
+        .group-row {
+            display: flex; gap: 18px; align-items: flex-start;
+            overflow-x: auto; scrollbar-width: none; padding: 2px;
+        }
+        .group-row::-webkit-scrollbar { display: none; }
+        /* centered while fitting, start-aligned scroll once overflowing */
+        .group-row .vid-tile:first-child { margin-left: auto; }
+        .group-row .vid-tile:last-child { margin-right: auto; }
+        /* chapter 3's pair scales down to share the row exactly */
+        .vid-group.g3 .vid-tile { flex: 0 1 auto; min-width: 0; }
+        .vid-group.g3 .vid-tile video { height: auto; width: 100%; }
+        .vid-tile { flex: 0 0 auto; margin: 0; max-width: 82vw; }
+        .vid-tile video {
+            height: 300px; width: auto; max-width: 100%; display: block;
+            border-radius: 10px; background: #fff;
+            box-shadow: 0 1px 5px rgba(27, 34, 51, 0.10);
+        }
+        .vid-tile figcaption {
+            font-size: 13px; color: var(--text-secondary);
+            margin-top: 8px; text-align: center; max-width: 540px;
+            margin-left: auto; margin-right: auto;
+        }
+        .vid-tile .query { font-style: italic; color: var(--text); }
+        .car-btn {
+            position: absolute; top: 175px; z-index: 2;
+            width: 42px; height: 42px; border-radius: 50%;
+            border: 1px solid var(--border); background: rgba(255, 255, 255, 0.92);
+            box-shadow: 0 2px 10px rgba(27, 34, 51, 0.14);
+            color: var(--accent); font-size: 18px; line-height: 1;
+            cursor: pointer; display: flex; align-items: center; justify-content: center;
+            transition: opacity 0.2s ease, transform 0.15s ease, background 0.15s ease;
+        }
+        .car-btn:hover { background: var(--accent); color: #fff; transform: scale(1.06); }
+        .car-btn.prev { left: -8px; }
+        .car-btn.next { right: -8px; }
+        .car-btn[hidden] { display: none; }
+        @media (hover: none) { .car-btn { display: none; } }
+
+        /* BibTeX */
+        .bibtex-wrap { position: relative; max-width: 780px; margin: 0 auto; }
+        pre.bibtex {
+            background: var(--bg-subtle); border: 1px solid var(--border); border-radius: 12px;
+            padding: 20px 22px; overflow-x: auto;
+            font-family: 'SF Mono', ui-monospace, Menlo, Consolas, monospace;
+            font-size: 13.5px; line-height: 1.6; color: var(--text);
+        }
+        .copy-btn {
+            position: absolute; top: 12px; right: 12px;
+            background: #ffffff; border: 1px solid var(--border); border-radius: 8px;
+            font: 600 12.5px 'Noto Sans', sans-serif; color: var(--text-secondary);
+            padding: 5px 12px; cursor: pointer;
+        }
+        .copy-btn:hover { color: var(--accent); border-color: var(--accent-light); }
+
+        /* Acknowledgements & footer */
+        .ack { font-size: 14px; color: var(--text-secondary); }
+        footer {
+            border-top: 1px solid var(--border);
+            padding: 26px 0 40px; text-align: center;
+            font-size: 14px; color: var(--text-tertiary);
+        }
+        footer a { color: var(--accent); text-decoration: none; }
+        footer a:hover { text-decoration: underline; }
+
+        @media (max-width: 760px) {
+            body { font-size: 16px; }
+            .hero { padding: 40px 0 32px; }
+            .cards { grid-template-columns: 1fr; }
+            .group-title { font-size: 15px; left: 16px; }
+            .vid-group { padding: 12px 12px 10px; }
+            .vid-tile { max-width: none; }
+            .vid-tile video { height: auto; width: 80vw; }
+            .vid-tile figcaption { max-width: 80vw; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="topbar">
+    <div class="container">
+        <a href="https://ashesham.github.io/">&larr; Syed Hesham</a>
+        <a href="https://eccv.ecva.net/virtual/2026/poster/5742">ECCV 2026</a>
+    </div>
+</div>
+
+<header class="hero">
+    <div class="container">
+        <div class="venue-badge">ECCV 2026</div>
+        <h1><span class="stac-name">STAC</span>: Selective Spatiotemporal Aggregation and Compression for Video Reasoning Segmentation</h1>
+        <p class="authors">
+            <span class="author"><a href="https://ashesham.github.io/">Syed Ariff Syed Hesham</a><sup>1,2</sup></span>,
+            <span class="author">Yun Liu<sup>3,4,5&#9993;</sup></span>,
+            <span class="author">Guolei Sun<sup>3,4,5</sup></span>,
+            <span class="author">Jing Yang<sup>6</sup></span>,
+            <span class="author">Henghui Ding<sup>7</sup></span>,
+            <span class="author">Xue Geng<sup>2</sup></span>,
+            <span class="author">Xudong Jiang<sup>1</sup></span>
+        </p>
+        <p class="affiliations">
+            <sup>1</sup>Nanyang Technological University &nbsp;&middot;&nbsp;
+            <sup>2</sup>Institute for Infocomm Research, A*STAR &nbsp;&middot;&nbsp;
+            <sup>3</sup>VCIP, Nankai University<br>
+            <sup>4</sup>AAIS, Nankai University &nbsp;&middot;&nbsp;
+            <sup>5</sup>NKIARI, Shenzhen Futian &nbsp;&middot;&nbsp;
+            <sup>6</sup>Guizhou University &nbsp;&middot;&nbsp;
+            <sup>7</sup>Fudan University
+        </p>
+        <p class="corresponding">&#9993; Corresponding author</p>
+        <div class="btn-row">
+            <a class="btn" href="https://arxiv.org/abs/2607.02922">
+                <svg viewBox="0 0 24 24"><path d="M6 2h9l5 5v15a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1zm8 1.5V8h4.5L14 3.5zM8 12h8v1.6H8V12zm0 3.4h8V17H8v-1.6z"/></svg>
+                Paper
+            </a>
+            <a class="btn" href="https://github.com/MCG-NKU/nku-video">
+                <svg viewBox="0 0 24 24"><path d="M12 1.8A10.2 10.2 0 0 0 8.77 21.68c.51.1.7-.22.7-.49l-.01-1.9c-2.84.62-3.44-1.2-3.44-1.2-.46-1.18-1.13-1.5-1.13-1.5-.93-.63.07-.62.07-.62 1.03.07 1.57 1.05 1.57 1.05.91 1.57 2.4 1.12 2.98.85.09-.66.36-1.11.65-1.37-2.27-.26-4.65-1.13-4.65-5.04 0-1.11.4-2.02 1.05-2.74-.11-.26-.46-1.3.1-2.7 0 0 .86-.28 2.8 1.04a9.73 9.73 0 0 1 5.11 0c1.95-1.32 2.8-1.05 2.8-1.05.56 1.41.21 2.45.1 2.71.65.72 1.05 1.63 1.05 2.74 0 3.92-2.39 4.78-4.66 5.03.37.32.69.94.69 1.9l-.01 2.81c0 .27.18.6.7.49A10.2 10.2 0 0 0 12 1.8z"/></svg>
+                Code
+            </a>
+            <a class="btn" href="#video">
+                <svg viewBox="0 0 24 24"><path d="M4 4h11a2 2 0 0 1 2 2v3.2l4-2.7v11l-4-2.7V18a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/></svg>
+                Video
+            </a>
+            <a class="btn" href="https://eccv.ecva.net/virtual/2026/poster/5742">
+                <svg viewBox="0 0 24 24"><path d="M4 3h16a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1h-6.5l2.5 4h-2.3L11.5 17H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zm3 4v7h2V7H7zm4 2v5h2V9h-2zm4-3v8h2V6h-2z"/></svg>
+                Poster &amp; Slides
+            </a>
+        </div>
+    </div>
+</header>
+
+<main>
+    <section class="teaser">
+        <div class="container wide">
+            <div class="figure">
+                <img src="static/images/fig_architecture.svg" alt="STAC architecture: a visual tokenizer feeds global and local frame tokens into the STAC module — a temporal state aggregator followed by temporal and spatio-temporal selectors — whose compressed tokens are consumed by a multimodal LLM with LoRA and decoded into segmentation masks by a mask decoder.">
+                <p class="caption"><span class="figlabel">Overview.</span> Dense frame tokens are first enriched by the State-informed Spatiotemporal Aggregator, then reduced by the Hierarchical State-adaptive Compression module before reaching the multimodal LLM. Compression decisions are made in a temporally contextualized feature space and are trained end-to-end with the segmentation objective, so the model keeps exactly the tokens the task needs.</p>
+            </div>
+        </div>
+    </section>
+
+    <section id="abstract">
+        <div class="container">
+            <h2>Abstract</h2>
+            <p class="prose">
+                Video reasoning segmentation demands pixel-accurate object tracking across hundreds of frames under complex natural language queries, producing dense spatiotemporal tokens whose quadratic self-attention cost makes long-video processing prohibitive. Existing methods address this through token compression, yet typically operate on encoder features lacking temporal context, constraining selection before content redundancy can be reliably assessed. Informed compression requires contextual awareness, but acquiring that awareness at full resolution incurs the same quadratic cost compression aims to reduce. State-space models resolve this constraint, as their linear recurrence selectively conditions each token on temporal context at <i>O</i>(<i>T</i>) cost, producing representations where content redundancy becomes assessable. Building on this, <b>S</b>elective Spatio<b>T</b>emporal <b>A</b>ggregation and <b>C</b>ompression (<b>STAC</b>) enriches features via decoupled bidirectional spatial and causal temporal scanning, leveraging recurrence-derived redundancy for hierarchical compression with adaptive thresholds optimised with segmentation objective. STAC achieves 85% token reduction and 1.8&times; speedup while surpassing compression-free baselines on reasoning segmentation benchmarks in a zero-shot streaming-compatible setting.
+            </p>
+        </div>
+    </section>
+
+    <section id="highlights">
+        <div class="container">
+            <h2>Highlights</h2>
+            <div class="stats">
+                <div class="stat"><div class="num">~85%</div><div class="lbl">fewer video tokens</div></div>
+                <div class="stat"><div class="num">1.8&times;</div><div class="lbl">faster training &amp; inference</div></div>
+                <div class="stat"><div class="num">Zero-shot</div><div class="lbl">streaming-compatible</div></div>
+            </div>
+            <div class="cards">
+                <div class="card">
+                    <h3>State-informed Spatiotemporal Aggregator</h3>
+                    <p>Enriches encoder features through decoupled bidirectional spatial and causal temporal scanning, producing a semantically grounded feature space where redundancy becomes discernible before compression — with streaming deployment supported by the causal temporal design.</p>
+                </div>
+                <div class="card">
+                    <h3>Hierarchical State-adaptive Compression</h3>
+                    <p>Performs temporal-then-spatial token reduction in the recurrence-enriched feature space, with adaptive thresholds that respond to local content dynamics: static regions are compressed aggressively while motion boundaries are preserved.</p>
+                </div>
+                <div class="card">
+                    <h3>Task-Grounded Differentiable Compression</h3>
+                    <p>Propagates segmentation gradients directly through discrete compression decisions via straight-through estimation, aligning token retention with downstream mask accuracy and transferring zero-shot to unseen reasoning benchmarks.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="method">
+        <div class="container wide">
+            <h2>Method</h2>
+            <p class="prose" style="margin-bottom: 26px;">
+                Spatial relationships within a frame are non-causal — objects interact with all of their neighbours simultaneously — whereas temporal evolution follows a strictly causal progression. STAC therefore decouples the two: bidirectional scanning aggregates spatial context within each frame, while a causal temporal scan accumulates history across frames at linear cost. Because the recurrence has already absorbed redundant content by the time compression happens, near-identical enriched representations directly signal what can be merged, and adaptive thresholds trained with the segmentation loss decide what is kept.
+            </p>
+            <div class="figure">
+                <img src="static/images/fig_spatiotemp.svg" alt="Decoupled scanning in STAC: bidirectional spatial scans within frames combined with a causal temporal scan across frames.">
+                <p class="caption"><span class="figlabel">Decoupled scanning.</span> Bidirectional spatial scans respect the non-causal structure within frames; the causal temporal scan never looks at future frames, which is what makes STAC deployable in a streaming setting.</p>
+            </div>
+        </div>
+    </section>
+
+    <section id="results">
+        <div class="container wide">
+            <h2>Results</h2>
+            <p class="prose" style="margin-bottom: 26px;">
+                STAC is trained only on the referring benchmarks MeViS and Refer-YouTube-VOS, and evaluated zero-shot on Ref-DAVIS17 and the reasoning benchmarks ReVOS and ReasonVOS. Across context lengths it surpasses compression-free baselines while processing a fraction of the tokens, and the margin grows as videos get longer &mdash; exactly the regime dense attention cannot afford.
+            </p>
+            <div class="fig-pair">
+                <div class="figure">
+                    <img src="static/images/context_graph.svg" alt="Line plot of J&amp;F accuracy versus context length, where STAC maintains the highest accuracy as context grows.">
+                </div>
+                <div class="figure">
+                    <img src="static/images/context_spider_plot.svg" alt="Radar plot of J&amp;F across context lengths C=2 through C=64, with STAC enclosing the competing methods.">
+                </div>
+            </div>
+            <p class="caption" style="margin-top: 18px;"><span class="figlabel">Context scaling.</span> Left: compute cost (GPU memory vs. runtime) as temporal context grows — STAC stays in the low-cost corner where dense baselines blow up. Right: J&amp;F across context lengths C=2&ndash;64 — STAC (orange) encloses all competing methods.</p>
+        </div>
+    </section>
+
+    <section id="video">
+        <div class="container wide">
+            <h2>Qualitative Results</h2>
+            <div class="figure" style="margin-bottom: 36px;">
+                <img src="static/images/fig_vis_comp.jpg" alt="Frame-level qualitative comparison between STAC and prior methods on reasoning segmentation queries.">
+                <p class="caption"><span class="figlabel">Frame-level comparison.</span> Qualitative comparison against prior methods on reasoning queries; STAC produces cleaner, temporally stable masks despite discarding ~85% of the tokens.</p>
+            </div>
+
+            <p class="prose" style="margin-bottom: 16px;">
+                The clips below compare STAC against GLUS in motion. The <i>Compressed</i> panel visualizes STAC's compression dynamics: a red overlay marks patches being sequentially aggregated, with deeper red indicating heavier aggregation and a colour refresh marking each summary update.
+            </p>
+            <div class="vid-group g1">
+                <div class="group-title">1&nbsp;&middot;&nbsp;Temporal Consistency &amp; Identity Preservation</div>
+                <div class="carousel">
+                    <button class="car-btn prev" type="button" aria-label="Scroll back">&#10094;</button>
+                    <div class="vid-scroll">
+                        <figure class="vid-tile">
+                            <video muted loop playsinline preload="none" poster="static/videos/poster_clip_truck.jpg">
+                                <source src="static/videos/clip_truck.mp4" type="video/mp4">
+                            </video>
+                            <figcaption><span class="query">&ldquo;The transportation means with the largest carrying capacity&rdquo;</span> &mdash; night driving scene.</figcaption>
+                        </figure>
+                        <figure class="vid-tile">
+                            <video muted loop playsinline preload="none" poster="static/videos/poster_clip_tennis.jpg">
+                                <source src="static/videos/clip_tennis.mp4" type="video/mp4">
+                            </video>
+                            <figcaption><span class="query">&ldquo;A person in blue shorts.&rdquo;</span> &mdash; small, fast-moving subject.</figcaption>
+                        </figure>
+                        <figure class="vid-tile">
+                            <video muted loop playsinline preload="none" poster="static/videos/poster_clip_bike.jpg">
+                                <source src="static/videos/clip_bike.mp4" type="video/mp4">
+                            </video>
+                            <figcaption><span class="query">&ldquo;The male individual riding a bike&rdquo;</span> &mdash; identity held through occlusion.</figcaption>
+                        </figure>
+                    </div>
+                    <button class="car-btn next" type="button" aria-label="Scroll forward">&#10095;</button>
+                </div>
+            </div>
+
+            <div class="vid-group g2">
+                <div class="group-title">2&nbsp;&middot;&nbsp;Linguistic Invariance &amp; Cross-Query Consistency</div>
+                <div class="group-row">
+                    <figure class="vid-tile">
+                        <video muted loop playsinline preload="none" poster="static/videos/poster_clip_rabbit.jpg">
+                            <source src="static/videos/clip_rabbit.mp4" type="video/mp4">
+                        </video>
+                        <figcaption><span class="query">&ldquo;The relocating / mobile / moving / traveling rabbit&rdquo;</span> &mdash; consistent masks across all four phrasings.</figcaption>
+                    </figure>
+                </div>
+            </div>
+
+            <div class="vid-group g3">
+                <div class="group-title">3&nbsp;&middot;&nbsp;Multi-Object Segmentation</div>
+                <div class="group-row">
+                    <figure class="vid-tile">
+                        <video muted loop playsinline preload="none" poster="static/videos/poster_clip_calf.jpg">
+                            <source src="static/videos/clip_calf.mp4" type="video/mp4">
+                        </video>
+                        <figcaption><span class="query">&ldquo;The young calf and the sheep engaged in a headbutting competition&rdquo;</span></figcaption>
+                    </figure>
+                    <figure class="vid-tile">
+                        <video muted loop playsinline preload="none" poster="static/videos/poster_clip_pigeons.jpg">
+                            <source src="static/videos/clip_pigeons.mp4" type="video/mp4">
+                        </video>
+                        <figcaption><span class="query">&ldquo;A gathering of pigeons shifting and moving&rdquo;</span></figcaption>
+                    </figure>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="bibtex">
+        <div class="container">
+            <h2>BibTeX</h2>
+            <div class="bibtex-wrap">
+                <button class="copy-btn" id="copy-bib" type="button">Copy</button>
+                <pre class="bibtex" id="bib-text">@inproceedings{hesham2026stac,
+  title     = {{STAC}: Selective Spatiotemporal Aggregation and Compression for Video Reasoning Segmentation},
+  author    = {Hesham, Syed Ariff Syed and Liu, Yun and Sun, Guolei and Yang, Jing and Ding, Henghui and Geng, Xue and Jiang, Xudong},
+  booktitle = {European Conference on Computer Vision (ECCV)},
+  year      = {2026}
+}</pre>
+            </div>
+        </div>
+    </section>
+
+    <section id="acknowledgements">
+        <div class="container">
+            <h2>Acknowledgements</h2>
+            <p class="prose ack">
+                This research work is supported by the Natural Science Foundation of China (No.&nbsp;62576176), the Agency for Science, Technology and Research (A*STAR) under its MTC Programmatic Funds (Grant No.&nbsp;M23L7b0021) and the A*STAR Graduate Scholarship. The computational resources are supported by the Supercomputing Center of Nankai University (NKSC).
+            </p>
+        </div>
+    </section>
+</main>
+
+<footer>
+    <div class="container">
+        <p><a href="https://ashesham.github.io/">Syed Hesham</a> &nbsp;&middot;&nbsp; <a href="https://arxiv.org/abs/2607.02922">arXiv</a> &nbsp;&middot;&nbsp; <a href="https://github.com/MCG-NKU/nku-video">Code</a> &nbsp;&middot;&nbsp; <a href="https://eccv.ecva.net/virtual/2026/poster/5742">ECCV 2026</a></p>
+    </div>
+</footer>
+
+<script>
+    // Autoplay clip tiles only while they are on screen
+    (function () {
+        var vids = document.querySelectorAll('.vid-tile video');
+        if (!('IntersectionObserver' in window)) {
+            vids.forEach(function (v) { v.play().catch(function () {}); });
+            return;
+        }
+        var io = new IntersectionObserver(function (entries) {
+            entries.forEach(function (entry) {
+                var v = entry.target;
+                if (entry.isIntersecting) { v.play().catch(function () {}); }
+                else { v.pause(); }
+            });
+        }, { rootMargin: '80px 0px', threshold: 0.15 });
+        vids.forEach(function (v) { io.observe(v); });
+    })();
+
+    // Carousel arrows + edge fades
+    document.querySelectorAll('.carousel').forEach(function (car) {
+        var strip = car.querySelector('.vid-scroll');
+        var prev = car.querySelector('.car-btn.prev');
+        var next = car.querySelector('.car-btn.next');
+
+        function update() {
+            var overflow = strip.scrollWidth - strip.clientWidth;
+            var atStart = strip.scrollLeft <= 4;
+            var atEnd = strip.scrollLeft >= overflow - 4;
+            car.classList.toggle('overflowing', overflow > 8 && !atStart && !atEnd);
+            car.classList.toggle('at-start', overflow > 8 && atStart && !atEnd);
+            car.classList.toggle('at-end', overflow > 8 && atEnd && !atStart);
+            prev.hidden = overflow <= 8 || atStart;
+            next.hidden = overflow <= 8 || atEnd;
+        }
+        function step(dir) {
+            strip.scrollBy({ left: dir * strip.clientWidth * 0.75, behavior: 'smooth' });
+        }
+        prev.addEventListener('click', function () { step(-1); });
+        next.addEventListener('click', function () { step(1); });
+        strip.addEventListener('scroll', update, { passive: true });
+        window.addEventListener('resize', update);
+        update();
+    });
+
+    // Copy BibTeX
+    document.getElementById('copy-bib').addEventListener('click', function () {
+        var btn = this;
+        navigator.clipboard.writeText(document.getElementById('bib-text').textContent).then(function () {
+            btn.textContent = 'Copied!';
+            setTimeout(function () { btn.textContent = 'Copy'; }, 1600);
+        });
+    });
+</script>
+
+</body>
+</html>
